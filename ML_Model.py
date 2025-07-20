@@ -41,7 +41,6 @@ def extract_merra_features(nc_folder):
             t2mdew = ds.variables['T2MDEW'][:, 0, 0]
             tqi = ds.variables['TQI'][:, 0, 0]
             tql = ds.variables['TQL'][:, 0, 0]
-            # u2m = ds.variables['U2M'][:, 0, 0]
 
             for i in range(len(times)):
                 # Ensure times[i] is a native datetime object
@@ -95,10 +94,18 @@ combined_df = pd.merge(combined_df, merra_df, on="Date")
 
 
 # ---------- Step 5: ML Model ----------
-features = ['Mean_AOD', 'PS', 'QV2M', 'T2M', 'TS', 'U10M', 'U10M', 'QV10M', 'SLP', 'T10M', 'T2MDEW', 'TQI', 'TQL']
-X = combined_df[features]
-y = combined_df['PM2.5 (µg/m³)']
+features = ['Mean_AOD', 'PS', 'QV2M', 'T2M', 'TS', 'U10M', 'QV10M', 'SLP', 'T10M', 'T2MDEW', 'TQI', 'TQL']
+clean_df = combined_df.dropna(subset=features + ['PM2.5 (µg/m³)'])
 
+# Create feature matrix and target vector
+X = clean_df[features].copy()
+y = clean_df['PM2.5 (µg/m³)']
+
+# Optional feature engineering
+X['Temp_Diff'] = X['TS'] - X['T2M']
+X['Humidity_Ratio'] = X['QV2M'] / (X['T2M'] + 1e-3)  # prevent division by zero
+
+# Split the dataset
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 rf = RandomForestRegressor(n_estimators=100, random_state=42)
 rf.fit(X_train, y_train)
@@ -109,54 +116,31 @@ print("MAE:", mean_absolute_error(y_test, y_pred))
 print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
 print("R²:", r2_score(y_test, y_pred))
 
-# ---------- Step 5: ML Model (Linear Regression) ----------
-# from sklearn.linear_model import LinearRegression
-
-# features = ['Mean_AOD', 'PS', 'QV2M', 'T2M', 'TS', 'U10M', 'V10M']
-# X = combined_df[features]
-# y = combined_df['PM2.5 (µg/m³)']
-
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# lr = LinearRegression()
-# lr.fit(X_train, y_train)
-
-# y_pred = lr.predict(X_test)
-
-# print("✅ Evaluation (Linear Regression):")
-# print("MAE:", mean_absolute_error(y_test, y_pred))
-# print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
-# print("R²:", r2_score(y_test, y_pred))
-
-
-# ---------- Step 6: Predict for 19 June ----------
-# Replace with actual June 19 values from your MERRA and AOD
-june_19 = {
+# # ---------- Step 6: Predict for 20 June ----------
+# # Replace with actual June 20 values from your MERRA and AOD
+may_11 = {
     "Mean_AOD": [0.97],
-    "PS": [96736.921],
-    "QV2M": [0.012],
-    "T2M": [318.42],
-    "TS": [321],
-    "U10M": [7.13],
-    "QV10M": [0.01],
-    "SLP": [98938.65],
-    "T10M": [317.61],
-    "T2MDEW": [289.67],
-    "TQI": [2.6],
+    "PS": [98119.390],
+    "QV2M": [0.007],
+    "T2M": [313.68],
+    "TS": [316.82],
+    "U10M": [2.75],
+    "QV10M": [0.007],
+    "SLP": [100396.60],
+    "T10M": [312.85],
+    "T2MDEW": [283.28],
+    "TQI": [0.0],
     "TQL": [0.0],
-    # "U2M": [5.41]
 }
-june_19_df = pd.DataFrame(june_19)
-june_19_df = june_19_df[features]
-pred_pm = rf.predict(june_19_df)
-print("\n🔮 Predicted PM2.5 for 19 June 2024 at 05:30 IST:", pred_pm[0])
+may_11_df = pd.DataFrame(may_11)
 
-# import seaborn as sns
-# sns.heatmap(combined_df.corr(), annot=True)
+# Recreate engineered features
+may_11_df['Temp_Diff'] = may_11_df['TS'] - may_11_df['T2M']
+may_11_df['Humidity_Ratio'] = may_11_df['QV2M'] / (may_11_df['T2M'] + 1e-3)
 
-# import matplotlib.pyplot as plt
-# plt.scatter(y_test, y_pred)
-# plt.xlabel("Actual PM2.5")
-# plt.ylabel("Predicted PM2.5")
-# plt.title("Actual vs Predicted PM2.5")
-# plt.show()
+# Ensure columns match training
+X_input = may_11_df[X_train.columns]
+
+# Predict
+pred_pm = rf.predict(X_input)
+print("\n🔮 Predicted PM2.5 for 11 May 2024 at 05:30 IST:", pred_pm[0])
