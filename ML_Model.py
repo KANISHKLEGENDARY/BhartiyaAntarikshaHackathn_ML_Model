@@ -1,17 +1,17 @@
-#Combining MOSDAC and CPCB data with MERRA and predicting the PM2.5 Level
+#Combining MOSDAC and CPCB data with MERRA and predicting the PM2.5 Level(SAutomatic filling of MERRA DATA)
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from netCDF4 import Dataset, num2date
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
-import h5py
+import xarray as xr
 
 # ---------- Step 1: Load INSAT AOD from CSV ----------
 aod_df = pd.read_csv("aod_data.csv")
-aod_df['Date'] = pd.to_datetime(aod_df['Date'])  # 🔄 Convert to datetime for merging
+aod_df['Date'] = pd.to_datetime(aod_df['Date'])  # Convert to datetime for merging
 # print(aod_df.head())
 
 # ---------- Step 2: Load CPCB PM2.5 ----------
@@ -66,12 +66,12 @@ def extract_merra_features(nc_folder):
 
     return pd.DataFrame(records)
 
-merra_df = extract_merra_features("merra_downloads")  # 📁 Folder containing .nc4 files
+merra_df = extract_merra_features("merra_downloads")  
 merra_df = merra_df.groupby("Date").mean().reset_index()
 
 aod_df['Date'] = pd.to_datetime(aod_df['Date'])
 pm_df['Date'] = pd.to_datetime(pm_df['Date'])
-merra_df['Date'] = pd.to_datetime(merra_df['Date'])  # ✅ This fixes the issue
+merra_df['Date'] = pd.to_datetime(merra_df['Date']) 
 
 # print(aod_df.dtypes)
 # print(pm_df.dtypes)
@@ -116,31 +116,58 @@ print("MAE:", mean_absolute_error(y_test, y_pred))
 print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
 print("R²:", r2_score(y_test, y_pred))
 
-# # ---------- Step 6: Predict for 20 June ----------
-# # Replace with actual June 20 values from your MERRA and AOD
-may_11 = {
-    "Mean_AOD": [0.97],
-    "PS": [98119.390],
-    "QV2M": [0.007],
-    "T2M": [313.68],
-    "TS": [316.82],
-    "U10M": [2.75],
-    "QV10M": [0.007],
-    "SLP": [100396.60],
-    "T10M": [312.85],
-    "T2MDEW": [283.28],
-    "TQI": [0.0],
-    "TQL": [0.0],
-}
-may_11_df = pd.DataFrame(may_11)
 
-# Recreate engineered features
-may_11_df['Temp_Diff'] = may_11_df['TS'] - may_11_df['T2M']
-may_11_df['Humidity_Ratio'] = may_11_df['QV2M'] / (may_11_df['T2M'] + 1e-3)
+# ---------- Step 6: Extract MERRA features for a specific date ----------
+def extract_merra_single_day(file_path, lat=28.41, lon=77.31):
+    ds = xr.open_dataset(file_path)
 
-# Ensure columns match training
-X_input = may_11_df[X_train.columns]
+    nearest_lat = ds.sel(lat=lat, method="nearest").lat.values
+    nearest_lon = ds.sel(lon=lon, method="nearest").lon.values
 
-# Predict
+    time_step = ds.time.values[0]  # Assuming only one day present
+
+    features = {
+        "PS":     [float(ds["PS"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "QV2M":   [float(ds["QV2M"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "T2M":    [float(ds["T2M"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "TS":     [float(ds["TS"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "U10M":   [float(ds["U10M"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "QV10M":  [float(ds["QV10M"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "SLP":    [float(ds["SLP"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "T10M":   [float(ds["T10M"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "T2MDEW": [float(ds["T2MDEW"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "TQI":    [float(ds["TQI"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+        "TQL":    [float(ds["TQL"].sel(time=time_step, lat=nearest_lat, lon=nearest_lon).values)],
+    }
+
+    return features
+
+# Update this path to the correct file for the target date
+merra_file = "merra_downloads/MERRA2_400.tavg1_2d_slv_Nx.20240104.SUB.nc"
+merra_features = extract_merra_single_day(merra_file)
+
+# Add manually or automate fetching AOD from INSAT later
+merra_features["Mean_AOD"] = [0.97]
+
+# Create DataFrame from extracted features
+predict_input_df = pd.DataFrame(merra_features)
+
+# ---------- Step 7: Feature Engineering ----------
+predict_input_df['Temp_Diff'] = predict_input_df['TS'] - predict_input_df['T2M']
+predict_input_df['Humidity_Ratio'] = predict_input_df['QV2M'] / (predict_input_df['T2M'] + 1e-3)
+
+# Ensure correct column order
+X_input = predict_input_df[X_train.columns]
+
+# ---------- Step 8: Predict ----------
 pred_pm = rf.predict(X_input)
 print("\n🔮 Predicted PM2.5 for 11 May 2024 at 05:30 IST:", pred_pm[0])
+
+# ---------- Step 9: Save prediction ----------
+output_df = pd.DataFrame({
+    'Date': ['2024-05-11'],
+    'Predicted_PM2.5': [pred_pm[0]]
+})
+output_df.to_csv('predicted_pm25.csv', index=False, mode='w')
+print("💾 Prediction saved to 'predicted_pm25.csv'")
+
