@@ -1,0 +1,2 @@
+Date,Predicted_PM2.5,Model_Used,R2_Score
+2024-05-11,72.28260885401633,RandomForest,0.18448052198611464
