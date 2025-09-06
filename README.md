@@ -1,11 +1,11 @@
 # AeroSphinx – Surface-Level PM2.5 Estimation & Forecasting
 
 AeroSphinx is a project developed for ISRO’s Bhartiya Antariksha Hackathon (BAH 25).  
-It focuses on estimating and forecasting **surface-level PM2.5 concentrations in Faridabad** using:  
+It focuses on estimating and forecasting surface-level PM2.5 concentrations in Faridabad using:
 
-- Satellite data (INSAT AOD)  
-- Ground monitoring data (CPCB)  
-- Reanalysis data (MERRA-2)  
+- **Satellite data** (INSAT AOD)  
+- **Ground monitoring data** (CPCB)  
+- **Reanalysis data** (MERRA-2)  
 
 ---
 
@@ -19,7 +19,7 @@ It focuses on estimating and forecasting **surface-level PM2.5 concentrations in
 
 ## 🔹 Tech Stack
 - **Python:** Pandas, NumPy, Scikit-learn, Matplotlib  
-- **Visualization:** By Using PowerBI
+- **Visualization:** PowerBI  
 - **Data Sources:** INSAT AOD, CPCB, MERRA-2  
 
 ---
@@ -27,7 +27,7 @@ It focuses on estimating and forecasting **surface-level PM2.5 concentrations in
 ## 🔹 Additional Insights
 
 ### 1. Feature Engineering
-We engineered **two additional features**:  
+We engineered two additional features:  
 - **Temperature Difference**  
 - **Humidity Ratio**  
 
@@ -42,9 +42,25 @@ Our forecasting model is currently designed for a **one-day horizon**. Specifica
 
 ### 3. Seasonality Trends
 Clear seasonality trends were observed:  
-- **Winter (around November):** PM2.5 levels increase significantly.  
-- **Monsoon season:** Concentrations reach their minimum.  
+- **Winter (around November):** PM2.5 levels increase significantly  
+- **Monsoon season:** Concentrations reach their minimum  
 
-These seasonal variations highlight the influence of meteorological conditions on air quality and align with real-world environmental observations.
+These seasonal variations highlight the influence of meteorological conditions on air quality and align with real-world environmental observations.  
+
+---
+
+## 📂 Project Structure
+
+- **Code**  
+  - `ML_Model.py` → Main machine learning model implementation  
+
+- **Data Folders**  
+  - `aod_folder` → AOD Data (INSAT satellite)  
+  - `CPCB Data Folder` → CPCB ground monitoring data  
+  - `Merra_downloads` → MERRA-2 reanalysis data  
+
+- **Datasets Used in Code**  
+  - `aod_data.csv`  
+  - `combined_pm2.5_para.csv`  
 
 ---
