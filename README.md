@@ -19,7 +19,7 @@ It focuses on estimating and forecasting **surface-level PM2.5 concentrations in
 
 ## 🔹 Tech Stack
 - **Python:** Pandas, NumPy, Scikit-learn, Matplotlib  
-- **Visualization:** Plotly/Dash or Streamlit  
+- **Visualization:** By Using PowerBI
 - **Data Sources:** INSAT AOD, CPCB, MERRA-2  
 
 ---
